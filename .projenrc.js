@@ -8,7 +8,7 @@ const project = new awscdk.AwsCdkConstructLibrary({
   authorAddress: 'elindh@amazon.com',
   description: 'CDK construct library that allows you install Karpenter in an AWS EKS cluster',
   keywords: ['eks', 'karpenter'],
-  cdkVersion: '2.12.0',
+  cdkVersion: '2.59.0',
   defaultReleaseBranch: 'main',
   name: PROJECT_NAME,
   repositoryUrl: 'https://github.com/aws-samples/cdk-eks-karpenter.git',
@@ -27,6 +27,10 @@ const project = new awscdk.AwsCdkConstructLibrary({
   dependabotOptions: {
     scheduleInterval: DependabotScheduleInterval.MONTHLY,
   },
+
+  deps: [
+    'semver',
+  ],
 });
 
 const common_excludes = [
