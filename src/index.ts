@@ -3,6 +3,9 @@ import { Cluster, HelmChart } from 'aws-cdk-lib/aws-eks';
 import { CfnInstanceProfile, ManagedPolicy, Policy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
+import semver from 'semver';
+
+
 export interface KarpenterProps {
   /**
    * The EKS Cluster to attach to
@@ -22,12 +25,20 @@ export interface KarpenterProps {
    * @default - latest
    */
   readonly version?: string;
+
+  /**
+   * Helm repository where to find the chart
+   *
+   * @default - oci://public.ecr.aws/karpenter
+   */
+  readonly helmRepository?: string;
 }
 
 export class Karpenter extends Construct {
   public readonly cluster: Cluster;
   public readonly namespace: string;
   public readonly version?: string;
+  public readonly helmRepository?: string;
   public readonly nodeRole: Role;
   private readonly chart: HelmChart;
 
@@ -37,6 +48,21 @@ export class Karpenter extends Construct {
     this.cluster = props.cluster;
     this.namespace = props.namespace ?? 'karpenter';
     this.version = props.version;
+
+    // set helmRepository
+    if (props.helmRepository !== undefined) {
+      this.helmRepository = props.helmRepository;
+    } else {
+      // If the Karpenter release is <v0.17.0, use the old chart repo
+      if (
+        this.version !== undefined && semver.lt(this.version, '0.17.0')
+      ) {
+        this.helmRepository = 'https://charts.karpenter.sh';
+      } else {
+        this.helmRepository = 'oci://public.ecr.aws/karpenter';
+      }
+    }
+
 
     /*
      * We create a node role for Karpenter managed nodes, alongside an instance profile for the EC2
@@ -106,15 +132,15 @@ export class Karpenter extends Construct {
             'ec2:DescribeSpotPriceHistory',
             'ec2:DescribeSubnets',
             'pricing:GetProducts',
-            'ssm:GetParameter'
+            'ssm:GetParameter',
           ],
           resources: ['*'],
         }),
         new PolicyStatement({
           actions: [
-            'iam:PassRole'
+            'iam:PassRole',
           ],
-          resources: this.nodeRole
+          resources: [this.nodeRole.roleArn],
         }),
       ],
     });
@@ -129,7 +155,7 @@ export class Karpenter extends Construct {
       wait: true,
       chart: 'karpenter',
       release: 'karpenter',
-      repository: 'oci://public.ecr.aws/karpenter',
+      repository: this.helmRepository,
       namespace: this.namespace,
       version: this.version ?? undefined,
       createNamespace: false,

@@ -9,7 +9,7 @@ describe('Karpenter installation', () => {
     const stack = new cdk.Stack(app, 'test-stack');
 
     const cluster = new Cluster(stack, 'testcluster', {
-      version: KubernetesVersion.V1_21,
+      version: KubernetesVersion.V1_24,
     });
 
     new Karpenter(stack, 'Karpenter', {
@@ -27,7 +27,7 @@ describe('Karpenter installation', () => {
     const stack = new cdk.Stack(app, 'test-stack');
 
     const cluster = new Cluster(stack, 'testcluster', {
-      version: KubernetesVersion.V1_21,
+      version: KubernetesVersion.V1_24,
     });
 
     // Create Karpenter install with non-default version
@@ -48,7 +48,7 @@ describe('Karpenter installation', () => {
     const stack = new cdk.Stack(app, 'test-stack');
 
     const cluster = new Cluster(stack, 'testcluster', {
-      version: KubernetesVersion.V1_21,
+      version: KubernetesVersion.V1_24,
     });
 
     // Create Karpenter install with non-default namespace
@@ -61,6 +61,94 @@ describe('Karpenter installation', () => {
     t.hasResource('Custom::AWSCDK-EKS-Cluster', {});
     t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
       Namespace: 'kar-penter',
+    });
+  });
+
+  it('should allow custom helmRepository URL', () => {
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'test-stack');
+
+    const cluster = new Cluster(stack, 'testcluster', {
+      version: KubernetesVersion.V1_24,
+    });
+
+    // Create Karpenter install with non-default version
+    new Karpenter(stack, 'Karpenter', {
+      cluster: cluster,
+      helmRepository: 'oci://repository.test.url',
+    });
+
+    const t = Template.fromStack(stack);
+    t.hasResource('Custom::AWSCDK-EKS-Cluster', {});
+    t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
+      Repository: Match.stringLikeRegexp('oci://repository.test.url'),
+    });
+  });
+
+  it('should allow custom helmRepository URL and version', () => {
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'test-stack');
+
+    const cluster = new Cluster(stack, 'testcluster', {
+      version: KubernetesVersion.V1_24,
+    });
+
+    // Create Karpenter install with non-default version
+    new Karpenter(stack, 'Karpenter', {
+      cluster: cluster,
+      version: 'v0.6.0',
+      helmRepository: 'oci://repository.test.url',
+    });
+
+    const t = Template.fromStack(stack);
+    t.hasResource('Custom::AWSCDK-EKS-Cluster', {});
+    t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
+      Repository: Match.stringLikeRegexp('oci://repository.test.url'),
+    });
+    t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
+      Version: 'v0.6.0',
+    });
+  });
+
+  it('should install from old URL if Karpenter version < v0.17.0', () => {
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'test-stack');
+
+    const cluster = new Cluster(stack, 'testcluster', {
+      version: KubernetesVersion.V1_24,
+    });
+
+    // Create Karpenter install with non-default version
+    new Karpenter(stack, 'Karpenter', {
+      cluster: cluster,
+      version: 'v0.6.0',
+    });
+
+    const t = Template.fromStack(stack);
+    t.hasResource('Custom::AWSCDK-EKS-Cluster', {});
+    t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
+      Repository: Match.stringLikeRegexp('https://charts.karpenter.sh'),
+    });
+  });
+
+  it('should install from new URL if Karpenter version >= v0.17.0', () => {
+    const app = new cdk.App();
+    const stack = new cdk.Stack(app, 'test-stack');
+
+    const cluster = new Cluster(stack, 'testcluster', {
+      version: KubernetesVersion.V1_24,
+    });
+
+    // Create Karpenter install with non-default version
+    new Karpenter(stack, 'Karpenter', {
+      cluster: cluster,
+      version: 'v0.17.0',
+    });
+
+    const t = Template.fromStack(stack);
+    t.hasResource('Custom::AWSCDK-EKS-Cluster', {});
+    t.hasResourceProperties('Custom::AWSCDK-EKS-HelmChart', {
+      Repository: Match.stringLikeRegexp('oci://public.ecr.aws/karpenter'),
     });
   });
 });
